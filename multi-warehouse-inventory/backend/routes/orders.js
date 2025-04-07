@@ -1,10 +1,10 @@
 import express from 'express';
 import { supabase } from '../server.js';
-
+import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 
 // 1. Get all orders
-router.get("/", async (req, res) => {
+router.get("/", authenticate,async (req, res) => {
   try {
     const { data, error } = await supabase.from('orders').select('*');
     
@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
 });
 
 // 2. Create a new order
-router.post("/", async (req, res) => {
+router.post("/", authenticate,async (req, res) => {
   const { product_id, quantity, status } = req.body;
   
   try {
@@ -34,7 +34,7 @@ router.post("/", async (req, res) => {
 });
 
 // 3. Update an order status
-router.put("/:id", async (req, res) => {
+router.put("/:id",authenticate,  async (req, res) => {
   const { id } = req.params;
   const { status, fulfillment_date } = req.body;
 
@@ -53,7 +53,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // 4. Delete an order
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticate, async (req, res) => {
   const { id } = req.params;
 
   try {

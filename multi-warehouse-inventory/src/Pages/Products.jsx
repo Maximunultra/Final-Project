@@ -82,6 +82,8 @@ const Products = () => {
   };
 
   return (
+    <>
+    
     <div>
       <h1 className="text-2xl font-bold">Product Management</h1>
 
@@ -144,7 +146,9 @@ const Products = () => {
         </tbody>
       </table>
     </div>
+    </>
   );
+
 };
 
 export default Products;

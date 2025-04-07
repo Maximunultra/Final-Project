@@ -25,8 +25,9 @@ import stockRoutes from "./routes/stock.js";
 import warehouseRoutes from "./routes/warehouse.js";
 import stockMovementRoutes from "./routes/stockMovement.js";
 import usersRoutes from "./routes/users.js";
-
+import authRoutes from "./routes/auth.js";
 // Use Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/warehouses", warehouseRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/orders", ordersRoutes);
@@ -92,6 +93,28 @@ app.delete("/api/products/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+const users = [
+  { email: 'laurencepalacio099@gmail.com', role: 'admin' },
+  { email: 'jessel@example.com', role: 'staff' },
+];
+
+// Route to check the user's role based on email
+app.get('/api/auth/role', (req, res) => {
+  const { email } = req.query;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  const user = users.find(user => user.email === email);
+  if (user) {
+    res.json({ role: user.role });
+  } else {
+    res.status(404).json({ error: 'User not found' });
+  }
+});
+
 
 // Start the Server
 app.listen(port, () => {
