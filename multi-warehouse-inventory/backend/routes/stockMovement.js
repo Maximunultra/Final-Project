@@ -6,6 +6,20 @@ import dotenv from 'dotenv';
 dotenv.config();
 const router = express.Router();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+router.get('/', authorize(['admin', 'manager', 'staff']), async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('stock_movements')
+      .select('*');
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching stock movements:', err.message);
+    res.status(500).json({ error: 'Failed to fetch stock movements' });
+  }
+});
 
 router.post('/transfer', authorize(['admin', 'manager']), async (req, res) => {
   const { product_id, quantity, source_warehouse_id, destination_warehouse_id } = req.body;

@@ -35,12 +35,17 @@ const StockMovement = () => {
   };
 
   const fetchStockMovements = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/stock_movements');
-      setStockMovements(response.data);
-    } catch (error) {
-      console.error('Error fetching stock movements:', error);
-    }
+    const token = localStorage.getItem('token'); // Replace with your storage key
+  
+    const response = await fetch('http://localhost:5000/api/stock_movements', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  
+    const data = await response.json();
+    console.log(data);
   };
 
   const transferStock = async () => {
