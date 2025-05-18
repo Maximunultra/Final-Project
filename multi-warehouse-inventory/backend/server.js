@@ -26,7 +26,11 @@ import warehouseRoutes from "./routes/warehouse.js";
 import stockMovementRoutes from "./routes/stockMovement.js";
 import usersRoutes from "./routes/users.js";
 import authRoutes from "./routes/auth.js";
+import thresholdsRoutes from './routes/thresholds.js';
+import orderFulfillmentRoutes from './routes/orderFullfillment.js';
+import purchaseOrdersRouter from './routes/purchase_orders.js';
 // Use Routes
+app.use('/api/thresholds', thresholdsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/warehouses", warehouseRoutes);
 app.use("/api/stock", stockRoutes);
@@ -34,7 +38,8 @@ app.use("/api/orders", ordersRoutes);
 app.use("/api/suppliers", suppliersRoutes);
 app.use("/api/stock_movements", stockMovementRoutes);
 app.use("/api/users", usersRoutes);
-
+app.use('/api/fulfillment', orderFulfillmentRoutes);
+app.use('/api/purchase-orders', purchaseOrdersRouter);
 // Test Route
 app.get("/", (req, res) => {
   res.send("Hello from the backend!");

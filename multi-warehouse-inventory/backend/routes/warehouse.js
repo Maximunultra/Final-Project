@@ -36,6 +36,39 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Update a warehouse
+router.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, location, capacity } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Warehouse name is required' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('warehouses')
+      .update({ 
+        name, 
+        location, 
+        capacity: capacity === '' ? null : capacity 
+      })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    
+    if (data.length === 0) {
+      return res.status(404).json({ error: 'Warehouse not found' });
+    }
+    
+    res.json({ message: 'Warehouse updated successfully', warehouse: data[0] });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Error updating warehouse' });
+  }
+});
+
 //  Delete a warehouse
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;

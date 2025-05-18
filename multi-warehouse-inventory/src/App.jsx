@@ -7,7 +7,8 @@ import StockMovement from "./Pages/StockMovement";
 import LowStockAlerts from "./Pages/LowStockAlerts";
 import Login from "./Pages/Login";
 import Layout from "./Components/Layout"; // Import Layout
-
+import PurchaseOrders from "./Pages/PurchaseOrders";
+import SupplierManagement from "./Pages/Supplier";
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -30,6 +31,8 @@ const App = () => {
         <Route path="/warehouses" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><Warehouses /></Layout></PrivateRoute>} />
         <Route path="/stock-movement" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><StockMovement /></Layout></PrivateRoute>} />
         <Route path="/low-stock" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><LowStockAlerts /></Layout></PrivateRoute>} />
+         <Route path="/order" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><PurchaseOrders /></Layout></PrivateRoute>} />
+        <Route path="/supplier" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><SupplierManagement /></Layout></PrivateRoute>} />
       </Routes>
     </Router>
   );

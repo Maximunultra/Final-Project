@@ -245,7 +245,7 @@ const Products = () => {
 
       {/* Add Product Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed  bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-lg w-full max-w-md">
             <h2 className="text-xl font-semibold mb-4">Add New Product</h2>
             <form onSubmit={handleAddProduct}>
@@ -338,7 +338,7 @@ const Products = () => {
 
       {/* Stock Management Modal */}
       {isStockModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-lg w-full max-w-md">
             <h2 className="text-xl font-semibold mb-4">Manage Stock for {selectedProduct?.name}</h2>
             <form onSubmit={handleStockManagement}>
