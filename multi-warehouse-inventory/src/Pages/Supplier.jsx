@@ -10,11 +10,13 @@ const SupplierManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSupplier, setCurrentSupplier] = useState(null);
-  const [formData, setFormData] = useState({ company_name: '', contact_info: '', category: '', product_name: '', price: '' });
+  const [formData, setFormData] = useState({ company_name: '', contact_info: '' });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [showPurchaseOrders, setShowPurchaseOrders] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [forceDelete, setForceDelete] = useState(false);
+  const [relatedEntities, setRelatedEntities] = useState([]);
 
   // Fetch suppliers on component mount
   useEffect(() => {
@@ -62,19 +64,13 @@ const SupplierManagement = () => {
       setCurrentSupplier(supplier);
       setFormData({ 
         company_name: supplier.company_name, 
-        contact_info: supplier.contact_info || '',
-        category: supplier.category || '',
-        product_name: supplier.product_name || '',
-        price: supplier.price || ''
+        contact_info: supplier.contact_info || ''
       });
     } else {
       setCurrentSupplier(null);
       setFormData({ 
         company_name: '', 
-        contact_info: '', 
-        category: '', 
-        product_name: '', 
-        price: '' 
+        contact_info: '' 
       });
     }
     setIsModalOpen(true);
@@ -83,7 +79,7 @@ const SupplierManagement = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentSupplier(null);
-    setFormData({ company_name: '', contact_info: '', category: '', product_name: '', price: '' });
+    setFormData({ company_name: '', contact_info: '' });
   };
 
   const handleInputChange = (e) => {
@@ -129,22 +125,38 @@ const SupplierManagement = () => {
     setCurrentSupplier(supplier);
     setDeleteConfirmOpen(true);
     setDeleteError(null);
+    setForceDelete(false);
+    setRelatedEntities([]);
   };
 
   const closeDeleteConfirm = () => {
     setDeleteConfirmOpen(false);
     setCurrentSupplier(null);
     setDeleteError(null);
+    setForceDelete(false);
+    setRelatedEntities([]);
   };
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/suppliers/${currentSupplier.id}`, {
+      const url = forceDelete 
+        ? `http://localhost:5000/api/suppliers/${currentSupplier.id}?force=true`
+        : `http://localhost:5000/api/suppliers/${currentSupplier.id}`;
+        
+      const response = await fetch(url, {
         method: 'DELETE'
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Check if this is a related entities error
+        if (errorData.hasRelatedEntities) {
+          setRelatedEntities(errorData.relatedEntities);
+          setDeleteError(errorData.error);
+          return;
+        }
+        
         throw new Error(errorData.error || 'Failed to delete supplier');
       }
 
@@ -207,18 +219,17 @@ const SupplierManagement = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Information</th>
-                
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-4 text-center text-gray-500">Loading suppliers...</td>
+                    <td colSpan="3" className="px-6 py-4 text-center text-gray-500">Loading suppliers...</td>
                   </tr>
                 ) : filteredSuppliers.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
                       {searchTerm ? 'No suppliers match your search.' : 'No suppliers found. Add a supplier to get started.'}
                     </td>
                   </tr>
@@ -313,14 +324,38 @@ const SupplierManagement = () => {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 w-full max-w-md">
                 <h2 className="text-xl font-bold mb-4">Confirm Delete</h2>
-                <p className="mb-6">
-                  Are you sure you want to delete supplier <strong>{currentSupplier.company_name}</strong>? 
-                  This action cannot be undone.
+                <p className="mb-4">
+                  Are you sure you want to delete supplier <strong>{currentSupplier.company_name}</strong>?
+                  {!relatedEntities.length && " This action cannot be undone."}
                 </p>
                 
                 {deleteError && (
                   <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
                     <p>{deleteError}</p>
+                  </div>
+                )}
+                
+                {relatedEntities.length > 0 && (
+                  <div className="mb-6">
+                    <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
+                      <div className="flex items-center">
+                        <AlertTriangle size={20} className="mr-2" />
+                        <p>This supplier has associated {relatedEntities.join(' and ')}.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center mb-4">
+                      <input
+                        type="checkbox"
+                        id="forceDelete"
+                        checked={forceDelete}
+                        onChange={(e) => setForceDelete(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="forceDelete" className="ml-2 block text-sm text-red-700">
+                        I understand that deleting this supplier will also delete all associated {relatedEntities.join(' and ')}.
+                      </label>
+                    </div>
                   </div>
                 )}
                 
@@ -333,9 +368,14 @@ const SupplierManagement = () => {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                    disabled={relatedEntities.length > 0 && !forceDelete}
+                    className={`${
+                      relatedEntities.length > 0 && !forceDelete 
+                        ? 'bg-red-300 cursor-not-allowed' 
+                        : 'bg-red-600 hover:bg-red-700'
+                    } text-white px-4 py-2 rounded`}
                   >
-                    Delete Supplier
+                    {relatedEntities.length > 0 && forceDelete ? 'Force Delete' : 'Delete Supplier'}
                   </button>
                 </div>
               </div>
