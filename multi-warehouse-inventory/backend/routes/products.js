@@ -98,27 +98,34 @@ router.put('/:id', async (req, res) => {
 
 // DELETE a product by id
 router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-
+  const productId = req.params.id;
+  
   try {
-    // First, delete associated stock entries
-    const stockDeleteResult = await supabase
-      .from('stock')
-      .delete()
-      .eq('product_id', id);
-
-    if (stockDeleteResult.error) throw stockDeleteResult.error;
-
-    // Then delete the product
-    const { data, error } = await supabase
+    // With CASCADE DELETE, we only need to delete the product
+    // and all related stock records will be automatically deleted
+    const { error } = await supabase
       .from('products')
       .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    res.status(200).json({ message: 'Product and associated stock deleted successfully', data });
+      .eq('id', productId);
+    
+    if (error) {
+      console.error('Error deleting product:', error);
+      return res.status(500).json({ 
+        message: 'Error deleting product', 
+        error: error.message 
+      });
+    }
+    
+    return res.status(200).json({ 
+      message: 'Product and related records deleted successfully' 
+    });
+    
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting product', error });
+    console.error('Delete operation failed:', error);
+    return res.status(500).json({ 
+      message: 'Error deleting product', 
+      error: error.message || 'Unknown error occurred' 
+    });
   }
 });
 

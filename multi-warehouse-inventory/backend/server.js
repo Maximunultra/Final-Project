@@ -91,9 +91,21 @@ app.put("/api/products/:id", async (req, res) => {
 app.delete("/api/products/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) throw error;
-    res.json({ message: "Product deleted successfully" });
+    // First, delete all stock records for this product
+    const { error: stockError } = await supabase
+      .from("stock")
+      .delete()
+      .eq("product_id", id);
+    if (stockError) throw stockError;
+
+    // Then, delete the product itself
+    const { error: productError } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+    if (productError) throw productError;
+
+    res.json({ message: "Product and related stock deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

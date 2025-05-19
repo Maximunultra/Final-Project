@@ -158,4 +158,44 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// 🟢 DELETE route for stock entries
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // First check if the stock entry exists
+    const { data: existingStock, error: checkError } = await supabase
+      .from('stock')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error(`Error checking stock ${id}:`, checkError);
+      return res.status(500).json({ error: 'Error checking stock entry', details: checkError.message });
+    }
+
+    if (!existingStock) {
+      return res.status(404).json({ error: 'Stock entry not found' });
+    }
+
+    // Delete the stock entry
+    const { error: deleteError } = await supabase
+      .from('stock')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error(`Error deleting stock ${id}:`, deleteError);
+      return res.status(500).json({ error: 'Error deleting stock entry', details: deleteError.message });
+    }
+
+    res.status(200).json({ message: 'Stock entry deleted successfully' });
+  } catch (error) {
+    console.error(`Unexpected error deleting stock ${id}:`, error);
+    res.status(500).json({ error: 'Unexpected error deleting stock entry', details: error.message });
+  }
+});
+
+
 export default router;

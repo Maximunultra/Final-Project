@@ -147,6 +147,7 @@ const Products = () => {
       })
       .catch(error => {
         console.error('Error updating product:', error);
+        alert('Error updating product: ' + (error.response?.data?.message || error.message));
       });
   };
 
@@ -160,15 +161,39 @@ const Products = () => {
   };
 
   // Delete a product
-  const handleDelete = (productId) => {
+const handleDelete = (productId) => {
+  // Show confirmation dialog before deletion
+  if (window.confirm('Are you sure you want to delete this product?')) {
     axios.delete(`http://localhost:5000/api/products/${productId}`)
-      .then(() => {
+      .then((response) => {
+        // Update local state to remove the deleted product
         setProducts((prev) => prev.filter(product => product.id !== productId));
+        alert('Product deleted successfully');
       })
       .catch(error => {
         console.error('Error deleting product:', error);
+        
+        // Handle different error response formats
+        let errorMessage = 'Failed to delete product';
+        
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          errorMessage = error.response.data?.message || 
+                        error.response.data?.error || 
+                        `Server error: ${error.response.status}`;
+        } else if (error.request) {
+          // The request was made but no response was received
+          errorMessage = 'No response from server. Please check your connection.';
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          errorMessage = error.message;
+        }
+        
+        alert('Error deleting product: ' + errorMessage);
       });
-  };
+  }
+};
 
   // New function to handle adding a new product
   const handleAddProduct = (e) => {
@@ -183,7 +208,14 @@ const Products = () => {
     axios.post('http://localhost:5000/api/products', productToAdd)
       .then((response) => {
         // Add the new product to the list
-        setProducts((prev) => [...prev, response.data[0]]);
+        if (response.data.product) {
+          setProducts((prev) => [...prev, response.data.product]);
+        } else if (response.data && Array.isArray(response.data)) {
+          setProducts((prev) => [...prev, response.data[0]]);
+        } else if (response.data) {
+          // Handle case where response.data is the product object directly
+          setProducts((prev) => [...prev, response.data]);
+        }
         
         // Reset the new product form and close modal
         setNewProduct({
@@ -195,10 +227,11 @@ const Products = () => {
           selling_price: ''
         });
         setIsAddModalOpen(false);
+        alert('Product added successfully');
       })
       .catch(error => {
         console.error('Error adding product:', error);
-        alert('Error adding product: ' + error.message);
+        alert('Error adding product: ' + (error.response?.data?.message || error.message));
       });
   };
 
@@ -245,7 +278,7 @@ const Products = () => {
 
       {/* Add Product Modal */}
       {isAddModalOpen && (
-        <div className="fixed  bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-lg w-full max-w-md">
             <h2 className="text-xl font-semibold mb-4">Add New Product</h2>
             <form onSubmit={handleAddProduct}>
@@ -338,7 +371,7 @@ const Products = () => {
 
       {/* Stock Management Modal */}
       {isStockModalOpen && (
-        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-lg w-full max-w-md">
             <h2 className="text-xl font-semibold mb-4">Manage Stock for {selectedProduct?.name}</h2>
             <form onSubmit={handleStockManagement}>
@@ -441,7 +474,7 @@ const Products = () => {
                   <option value="">Select Supplier</option>
                   {suppliers.map((supplier) => (
                     <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
+                      {supplier.company_name || supplier.name}
                     </option>
                   ))}
                 </select>
@@ -533,15 +566,25 @@ const Products = () => {
                       ))}
                     </div>
                     <button 
-                      className="bg-yellow-500 text-white px-4 py-1 mt-2 rounded" 
+                      className="bg-yellow-500 text-white px-4 py-1 mt-2 rounded hover:bg-yellow-600" 
                       onClick={() => openStockModal(product)}
                     >
                       Manage Stock
                     </button>
                   </td>
                   <td className="px-4 py-2">
-                    <button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={() => handleEdit(product)}>Edit</button>
-                    <button className="bg-red-500 text-white px-4 py-2 ml-2 rounded" onClick={() => handleDelete(product.id)}>Delete</button>
+                    <button 
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600" 
+                      onClick={() => handleEdit(product)}
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      className="bg-red-500 text-white px-4 py-2 ml-2 rounded hover:bg-red-600" 
+                      onClick={() => handleDelete(product.id)}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               );

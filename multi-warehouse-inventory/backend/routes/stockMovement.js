@@ -8,33 +8,36 @@ const router = express.Router();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // Get all stock movements with mapped field names for frontend
-router.get('/', authorize(['admin', 'manager', 'staff']), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('stock_movements')
-      .select('*, products(name), warehouses!destination_warehouse_id(name)')
+      .select(`
+        id,
+        quantity,
+        status,
+        transfer_date,
+        products (name),
+        source_warehouse:warehouses!stock_movements_source_warehouse_id_fkey (name),
+        destination_warehouse:warehouses!stock_movements_destination_warehouse_id_fkey (name)
+      `)
       .order('transfer_date', { ascending: false });
 
     if (error) throw error;
-    
-    // Transform data to match frontend expectations
-    const transformedData = data.map(movement => ({
-      id: movement.id,
-      date: movement.transfer_date,
-      productId: movement.product_id,
-      type: movement.destination_warehouse_id && movement.source_warehouse_id ? 'transfer' : 
-             !movement.source_warehouse_id ? 'receiving' : 'shipping',
-      quantity: movement.quantity,
-      warehouseId: movement.destination_warehouse_id || movement.warehouse_id,
-      sourceWarehouseId: movement.source_warehouse_id || null,
-      referenceNumber: movement.reference_number || movement.id.toString(),
-      notes: movement.notes || '',
-      status: movement.status
+
+    // Transform for frontend
+    const transformed = data.map(m => ({
+      id: m.id,
+      quantity: m.quantity,
+      status: m.status,
+      transfer_date: m.transfer_date,
+      product_name: m.products?.name || 'Unknown',
+      source_warehouse_name: m.source_warehouse?.name || 'Unknown',
+      destination_warehouse_name: m.destination_warehouse?.name || 'Unknown',
     }));
 
-    res.json(transformedData);
+    res.json(transformed);
   } catch (err) {
-    console.error('Error fetching stock movements:', err.message);
     res.status(500).json({ error: 'Failed to fetch stock movements' });
   }
 });
@@ -139,25 +142,30 @@ router.post('/transfer', authorize(['admin', 'manager']), async (req, res) => {
     }
 
     // Step 5: Record Stock Movement
-    const { error: movementError } = await supabase
+    const { data: movementData, error: movementError } = await supabase
       .from('stock_movements')
-      .insert([{ 
-        product_id, 
-        quantity, 
-        source_warehouse_id, 
-        destination_warehouse_id, 
+      .insert([{
+        product_id,
+        quantity,
+        source_warehouse_id,
+        destination_warehouse_id,
         status: 'Completed',
-        transfer_date: new Date(),
-        type: 'transfer',  // Explicitly set the type
-        notes: req.body.notes || null,
-        reference_number: req.body.referenceNumber || null
-      }]);
+        transfer_date: new Date().toISOString()
+      }])
+      .select();
 
     if (movementError) {
-      console.error('Error recording stock movement:', movementError);
-      // The transfer was already completed, so we don't roll back here
-      // Just log the error and continue
+      console.error('DETAILED ERROR INSERTING STOCK MOVEMENT:', JSON.stringify(movementError));
+      // Log the data you're trying to insert
+      console.error('Attempted to insert:', {
+        product_id, quantity, source_warehouse_id, destination_warehouse_id
+      });
+      // Return error to frontend
+      return res.status(500).json({ error: 'Failed to record stock movement', details: movementError });
     }
+
+    // Log success
+    console.log('Successfully inserted stock movement:', movementData);
 
     res.json({ 
       success: true, 
