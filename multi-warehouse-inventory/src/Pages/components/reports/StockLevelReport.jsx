@@ -1,5 +1,6 @@
 // reports/StockLevelReport.jsx - Component for displaying current stock levels across warehouses
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const StockLevelReport = ({ products, warehouses }) => {
   const [sortConfig, setSortConfig] = useState({
@@ -7,6 +8,56 @@ const StockLevelReport = ({ products, warehouses }) => {
     direction: 'ascending'
   });
   const [filterText, setFilterText] = useState('');
+  const [productStockData, setProductStockData] = useState([]);
+  const [stockLevels, setStockLevels] = useState({});
+
+  // Fetch stock data and process products
+  useEffect(() => {
+    const fetchStockData = async () => {
+      try {
+        // Fetch stock levels from API
+        const stockResponse = await axios.get('http://localhost:5000/api/stock');
+        
+        // Create a map of stock levels with keys as `${product_id}-${warehouse_id}`
+        const stockMap = {};
+        stockResponse.data.forEach(stock => {
+          stockMap[`${stock.product_id}-${stock.warehouse_id}`] = stock.quantity;
+        });
+        setStockLevels(stockMap);
+      } catch (error) {
+        console.error('Error fetching stock data:', error);
+      }
+    };
+
+    fetchStockData();
+  }, []);
+
+  // Process product data with stock levels
+  useEffect(() => {
+    if (!products || !warehouses || Object.keys(stockLevels).length === 0) return;
+
+    const processedProducts = products.map(product => {
+      // Calculate total stock from all warehouses
+      let totalStock = 0;
+      const warehouseStockMap = {};
+
+      // Process stock levels for each warehouse
+      warehouses.forEach(warehouse => {
+        const stockKey = `${product.id}-${warehouse.id}`;
+        const quantity = stockLevels[stockKey] || 0;
+        warehouseStockMap[warehouse.id] = quantity;
+        totalStock += quantity;
+      });
+
+      return {
+        ...product,
+        totalStock: totalStock,
+        warehouseStock: warehouseStockMap
+      };
+    });
+
+    setProductStockData(processedProducts);
+  }, [products, warehouses, stockLevels]);
 
   // Handle sorting of products
   const requestSort = (key) => {
@@ -19,7 +70,7 @@ const StockLevelReport = ({ products, warehouses }) => {
 
   // Filter and sort products
   const getFilteredAndSortedProducts = () => {
-    const filtered = products.filter(product => 
+    const filtered = productStockData.filter(product => 
       product.name.toLowerCase().includes(filterText.toLowerCase()) ||
       product.sku.toLowerCase().includes(filterText.toLowerCase())
     );
@@ -39,6 +90,11 @@ const StockLevelReport = ({ products, warehouses }) => {
     if (sortConfig.key !== key) return null;
     return sortConfig.direction === 'ascending' ? '↑' : '↓';
   };
+
+  // If data is still loading
+  if (!products || !warehouses || products.length === 0 || productStockData.length === 0) {
+    return <div className="p-4">Loading stock data...</div>;
+  }
 
   return (
     <div>
@@ -97,8 +153,9 @@ const StockLevelReport = ({ products, warehouses }) => {
                 <td className="py-2 px-4 border">{product.totalStock}</td>
                 {warehouses.map(warehouse => {
                   // Find stock level for this product in this warehouse
-                  const stockInWarehouse = product.warehouseStock && 
-                    product.warehouseStock[warehouse.id] ? 
+                  const stockInWarehouse = 
+                    product.warehouseStock && 
+                    product.warehouseStock[warehouse.id] !== undefined ? 
                     product.warehouseStock[warehouse.id] : 0;
                   
                   return (
@@ -115,7 +172,7 @@ const StockLevelReport = ({ products, warehouses }) => {
       </div>
       
       <div className="mt-4 text-sm text-gray-600">
-        Showing {getFilteredAndSortedProducts().length} of {products.length} products
+        Showing {getFilteredAndSortedProducts().length} of {productStockData.length} products
       </div>
     </div>
   );

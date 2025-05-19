@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }) => {
+const StockMovementReport = ({ stockMovements: rawMovements, products, warehouses, dateRange }) => {
   const [sortConfig, setSortConfig] = useState({
     key: 'date',
     direction: 'descending'
@@ -10,6 +10,48 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
     warehouse: '',
     movementType: ''
   });
+  const [transformedMovements, setTransformedMovements] = useState([]);
+
+  // Transform backend data to frontend format
+  useEffect(() => {
+    if (!rawMovements || !Array.isArray(rawMovements)) {
+      setTransformedMovements([]);
+      return;
+    }
+
+    const transformed = rawMovements.map(movement => ({
+      id: movement.id || `temp-${Math.random().toString(36).substr(2, 9)}`,
+      date: movement.transfer_date || movement.date,
+      productId: movement.product_id || movement.productId,
+      // Determine movement type based on available fields
+      type: determineMovementType(movement),
+      quantity: movement.quantity,
+      warehouseId: movement.destination_warehouse_id || movement.warehouse_id || movement.warehouseId,
+      sourceWarehouseId: movement.source_warehouse_id || movement.sourceWarehouseId,
+      referenceNumber: movement.reference_number || movement.referenceNumber,
+      notes: movement.notes
+    }));
+
+    setTransformedMovements(transformed);
+  }, [rawMovements]);
+
+  // Helper to determine movement type
+  const determineMovementType = (movement) => {
+    // If type is explicitly set, use it
+    if (movement.type) return movement.type;
+    
+    // Otherwise infer from the data structure
+    if (movement.source_warehouse_id && movement.destination_warehouse_id) {
+      return 'transfer';
+    } else if (movement.source_warehouse_id) {
+      return 'shipping';
+    } else if (movement.destination_warehouse_id) {
+      return 'receiving';
+    }
+    
+    // Fallback
+    return 'adjustment';
+  };
 
   // Handle sorting
   const requestSort = (key) => {
@@ -22,20 +64,31 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
 
   // Apply filters and sorting to stock movements
   const getFilteredAndSortedMovements = () => {
-    const filtered = stockMovements.filter(movement => {
-      // Apply date range filter
-      const movementDate = new Date(movement.date);
-      const startDate = new Date(dateRange.startDate);
-      const endDate = new Date(dateRange.endDate);
-      endDate.setHours(23, 59, 59, 999); // Include the entire end date
+    // Make sure movements exist
+    if (!transformedMovements || !Array.isArray(transformedMovements)) {
+      return [];
+    }
+    
+    const filtered = transformedMovements.filter(movement => {
+      // Skip invalid movements
+      if (!movement || !movement.date) return false;
       
-      if (movementDate < startDate || movementDate > endDate) return false;
+      // Apply date range filter
+      if (dateRange && dateRange.startDate && dateRange.endDate) {
+        const movementDate = new Date(movement.date);
+        const startDate = new Date(dateRange.startDate);
+        const endDate = new Date(dateRange.endDate);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        
+        if (movementDate < startDate || movementDate > endDate) return false;
+      }
       
       // Apply product filter
       if (filters.product && movement.productId !== filters.product) return false;
       
-      // Apply warehouse filter
-      if (filters.warehouse && movement.warehouseId !== filters.warehouse) return false;
+      // Apply warehouse filter - check both destination and source warehouses
+      if (filters.warehouse && movement.warehouseId !== filters.warehouse && 
+          movement.sourceWarehouseId !== filters.warehouse) return false;
       
       // Apply movement type filter
       if (filters.movementType && movement.type !== filters.movementType) return false;
@@ -46,17 +99,21 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
     return [...filtered].sort((a, b) => {
       if (sortConfig.key === 'date') {
         // Special case for date sorting
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
+        const dateA = new Date(a.date || 0);
+        const dateB = new Date(b.date || 0);
         return sortConfig.direction === 'ascending' 
           ? dateA - dateB 
           : dateB - dateA;
       }
       
-      if (a[sortConfig.key] < b[sortConfig.key]) {
+      // Handle case where key doesn't exist in one or both objects
+      const aValue = a[sortConfig.key] !== undefined ? a[sortConfig.key] : '';
+      const bValue = b[sortConfig.key] !== undefined ? b[sortConfig.key] : '';
+      
+      if (aValue < bValue) {
         return sortConfig.direction === 'ascending' ? -1 : 1;
       }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
+      if (aValue > bValue) {
         return sortConfig.direction === 'ascending' ? 1 : -1;
       }
       return 0;
@@ -78,25 +135,35 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
 
   // Format date in a readable format
   const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    if (!dateString) return 'Invalid Date';
+    
+    try {
+      const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      return new Date(dateString).toLocaleDateString(undefined, options);
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   // Get product name by ID
   const getProductName = (productId) => {
+    if (!productId || !products || !Array.isArray(products)) return 'Unknown Product';
     const product = products.find(p => p.id === productId);
     return product ? product.name : 'Unknown Product';
   };
 
   // Get warehouse name by ID
   const getWarehouseName = (warehouseId) => {
+    if (!warehouseId || !warehouses || !Array.isArray(warehouses)) return 'Unknown Warehouse';
     const warehouse = warehouses.find(w => w.id === warehouseId);
     return warehouse ? warehouse.name : 'Unknown Warehouse';
   };
 
   // Get badge color based on movement type
   const getMovementTypeBadge = (type) => {
-    switch (type) {
+    if (!type) return 'bg-gray-100 text-gray-800';
+    
+    switch (type.toLowerCase()) {
       case 'receiving':
         return 'bg-green-100 text-green-800';
       case 'shipping':
@@ -114,9 +181,13 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
 
   // Get movement quantity with appropriate sign
   const getFormattedQuantity = (movement) => {
+    if (!movement || typeof movement.quantity === 'undefined') return '-';
+    
     const quantity = Math.abs(movement.quantity);
     
-    switch (movement.type) {
+    if (!movement.type) return quantity.toString();
+    
+    switch (movement.type.toLowerCase()) {
       case 'receiving':
       case 'return':
         return `+${quantity}`;
@@ -138,11 +209,15 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
     let outflow = 0;
     
     filteredMovements.forEach(movement => {
-      if (['receiving', 'return'].includes(movement.type) || (movement.type === 'adjustment' && movement.quantity > 0)) {
+      if (!movement.type || typeof movement.quantity === 'undefined') return;
+      
+      const type = movement.type.toLowerCase();
+      
+      if (['receiving', 'return'].includes(type) || (type === 'adjustment' && movement.quantity > 0)) {
         inflow += Math.abs(movement.quantity);
-      } else if (['shipping'].includes(movement.type) || (movement.type === 'adjustment' && movement.quantity < 0)) {
+      } else if (['shipping'].includes(type) || (type === 'adjustment' && movement.quantity < 0)) {
         outflow += Math.abs(movement.quantity);
-      } else if (movement.type === 'transfer') {
+      } else if (type === 'transfer') {
         // For transfers, consider location context
         if (movement.sourceWarehouseId) {
           outflow += Math.abs(movement.quantity);
@@ -178,7 +253,7 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
             className="border rounded p-1"
           >
             <option value="">All Products</option>
-            {products.map(product => (
+            {Array.isArray(products) && products.map(product => (
               <option key={product.id} value={product.id}>{product.name}</option>
             ))}
           </select>
@@ -193,7 +268,7 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
             className="border rounded p-1"
           >
             <option value="">All Warehouses</option>
-            {warehouses.map(warehouse => (
+            {Array.isArray(warehouses) && warehouses.map(warehouse => (
               <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
             ))}
           </select>
@@ -214,6 +289,16 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
             <option value="transfer">Transfer</option>
             <option value="return">Return</option>
           </select>
+        </div>
+        
+        {/* Clear filters button */}
+        <div className="self-end">
+          <button
+            onClick={() => setFilters({ product: '', warehouse: '', movementType: '' })}
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded"
+          >
+            Clear Filters
+          </button>
         </div>
       </div>
       
@@ -278,8 +363,9 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
                 >
                   Warehouse {getSortIndicator('warehouseId')}
                 </th>
-                <th className="py-2 px-4 border">Reference</th>
-                <th className="py-2 px-4 border">Notes</th>
+                <th className="py-2 px-4 border">
+                  Reference
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -293,7 +379,9 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
                   </td>
                   <td className="py-2 px-4 border">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getMovementTypeBadge(movement.type)}`}>
-                      {movement.type.charAt(0).toUpperCase() + movement.type.slice(1)}
+                      {movement.type && typeof movement.type === 'string' 
+                        ? movement.type.charAt(0).toUpperCase() + movement.type.slice(1)
+                        : 'Unknown'}
                     </span>
                   </td>
                   <td className="py-2 px-4 border font-medium">
@@ -301,7 +389,7 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
                   </td>
                   <td className="py-2 px-4 border">
                     {getWarehouseName(movement.warehouseId)}
-                    {movement.sourceWarehouseId && movement.type === 'transfer' && (
+                    {movement.sourceWarehouseId && movement.type && movement.type.toLowerCase() === 'transfer' && (
                       <div className="text-xs text-gray-500">
                         From: {getWarehouseName(movement.sourceWarehouseId)}
                       </div>
@@ -309,9 +397,9 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
                   </td>
                   <td className="py-2 px-4 border text-sm">
                     {movement.referenceNumber || '-'}
-                  </td>
-                  <td className="py-2 px-4 border text-sm">
-                    {movement.notes || '-'}
+                    {movement.notes && (
+                      <div className="text-xs text-gray-500">{movement.notes}</div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -321,7 +409,8 @@ const StockMovementReport = ({ stockMovements, products, warehouses, dateRange }
       )}
       
       <div className="mt-4 text-sm text-gray-600">
-        Showing {filteredMovements.length} stock movements from {dateRange.startDate} to {dateRange.endDate}
+        Showing {filteredMovements.length} stock movements 
+        {dateRange?.startDate && dateRange?.endDate ? ` from ${dateRange.startDate} to ${dateRange.endDate}` : ''}
       </div>
     </div>
   );

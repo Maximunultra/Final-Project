@@ -7,17 +7,32 @@ dotenv.config();
 const router = express.Router();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Get all stock movements
+// Get all stock movements with mapped field names for frontend
 router.get('/', authorize(['admin', 'manager', 'staff']), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('stock_movements')
-      .select('*')
+      .select('*, products(name), warehouses!destination_warehouse_id(name)')
       .order('transfer_date', { ascending: false });
 
     if (error) throw error;
+    
+    // Transform data to match frontend expectations
+    const transformedData = data.map(movement => ({
+      id: movement.id,
+      date: movement.transfer_date,
+      productId: movement.product_id,
+      type: movement.destination_warehouse_id && movement.source_warehouse_id ? 'transfer' : 
+             !movement.source_warehouse_id ? 'receiving' : 'shipping',
+      quantity: movement.quantity,
+      warehouseId: movement.destination_warehouse_id || movement.warehouse_id,
+      sourceWarehouseId: movement.source_warehouse_id || null,
+      referenceNumber: movement.reference_number || movement.id.toString(),
+      notes: movement.notes || '',
+      status: movement.status
+    }));
 
-    res.json(data);
+    res.json(transformedData);
   } catch (err) {
     console.error('Error fetching stock movements:', err.message);
     res.status(500).json({ error: 'Failed to fetch stock movements' });
@@ -132,7 +147,10 @@ router.post('/transfer', authorize(['admin', 'manager']), async (req, res) => {
         source_warehouse_id, 
         destination_warehouse_id, 
         status: 'Completed',
-        transfer_date: new Date()
+        transfer_date: new Date(),
+        type: 'transfer',  // Explicitly set the type
+        notes: req.body.notes || null,
+        reference_number: req.body.referenceNumber || null
       }]);
 
     if (movementError) {

@@ -1,39 +1,68 @@
 // reports/LowStockReport.jsx - Component for displaying products with low stock levels
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const LowStockReport = ({ alerts, products }) => {
+const LowStockReport = ({ alerts, products, thresholds }) => {
   const [sortConfig, setSortConfig] = useState({
     key: 'stockLevel',
     direction: 'ascending'
   });
+  const [lowStockItems, setLowStockItems] = useState([]);
 
-  // Get low stock products based on alerts
+  useEffect(() => {
+    // Set low stock items whenever products, thresholds or sort config changes
+    setLowStockItems(getSortedLowStockProducts());
+  }, [products, thresholds, sortConfig, alerts]);
+
+  // Get low stock products based on their thresholds
   const getLowStockProducts = () => {
-    // Filter products that have stock levels below their threshold
+    if (!products || products.length === 0) {
+      return [];
+    }
+
+    // First check if we have alerts data, which may be more current
+    if (alerts && alerts.length > 0) {
+      // Map alerts to our expected format
+      return alerts.map(alert => {
+        // Find matching product data
+        const matchingProduct = products.find(p => p.sku === alert.sku || p.id === alert.product_id);
+        
+        return {
+          id: matchingProduct?.id || alert.product_id,
+          name: alert.product || matchingProduct?.name,
+          sku: alert.sku,
+          totalStock: alert.currentStock !== undefined ? alert.currentStock : matchingProduct?.totalStock,
+          threshold: alert.threshold,
+          stockStatus: getStockStatus({
+            totalStock: alert.currentStock !== undefined ? alert.currentStock : matchingProduct?.totalStock,
+          }, alert.threshold)
+        };
+      });
+    }
+
+    // Fallback to calculating from products and thresholds
     return products.filter(product => {
-      const alert = alerts.find(alert => alert.productId === product.id && alert.type === 'low_stock');
-      return alert && product.totalStock <= (product.lowStockThreshold || 0);
+      // Find the corresponding threshold for this product
+      const productThreshold = thresholds?.find(t => t.product_id === product.id);
+      
+      // Use the threshold from the thresholds table, or default to 10 (matching DB default)
+      const thresholdValue = productThreshold ? productThreshold.threshold : 10;
+      
+      // Check if product stock is below threshold
+      return product.totalStock <= thresholdValue;
     }).map(product => {
-      const daysUntilOutOfStock = calculateDaysUntilOutOfStock(product);
+      const productThreshold = thresholds?.find(t => t.product_id === product.id);
+      const thresholdValue = productThreshold ? productThreshold.threshold : 10;
+      
       return {
         ...product,
-        daysUntilOutOfStock,
-        stockStatus: getStockStatus(product)
+        threshold: thresholdValue,
+        stockStatus: getStockStatus(product, thresholdValue)
       };
     });
   };
 
-  // Calculate estimated days until out of stock based on average daily consumption
-  const calculateDaysUntilOutOfStock = (product) => {
-    // This is a placeholder calculation
-    // In a real system, this would use historical sales data to calculate average daily consumption
-    const avgDailyConsumption = product.averageDailyConsumption || 1;
-    return avgDailyConsumption > 0 ? Math.floor(product.totalStock / avgDailyConsumption) : 999;
-  };
-
   // Get stock status label
-  const getStockStatus = (product) => {
-    const threshold = product.lowStockThreshold || 5;
+  const getStockStatus = (product, threshold) => {
     if (product.totalStock <= 0) return 'Out of Stock';
     if (product.totalStock <= threshold * 0.5) return 'Critical';
     return 'Low';
@@ -78,8 +107,6 @@ const LowStockReport = ({ alerts, products }) => {
     }
   };
 
-  const lowStockItems = getSortedLowStockProducts();
-
   return (
     <div>
       <h4 className="text-lg font-semibold mb-4">Low Stock Products</h4>
@@ -114,9 +141,9 @@ const LowStockReport = ({ alerts, products }) => {
                   </th>
                   <th 
                     className="py-2 px-4 border cursor-pointer"
-                    onClick={() => requestSort('lowStockThreshold')}
+                    onClick={() => requestSort('threshold')}
                   >
-                    Threshold {getSortIndicator('lowStockThreshold')}
+                    Threshold {getSortIndicator('threshold')}
                   </th>
                   <th 
                     className="py-2 px-4 border cursor-pointer"
@@ -124,28 +151,21 @@ const LowStockReport = ({ alerts, products }) => {
                   >
                     Status {getSortIndicator('stockStatus')}
                   </th>
-                  <th 
-                    className="py-2 px-4 border cursor-pointer"
-                    onClick={() => requestSort('daysUntilOutOfStock')}
-                  >
-                    Est. Days Until Out {getSortIndicator('daysUntilOutOfStock')}
-                  </th>
                   <th className="py-2 px-4 border">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {lowStockItems.map((product) => (
-                  <tr key={product.id}>
+                {lowStockItems.map((product, index) => (
+                  <tr key={product.id || index}>
                     <td className="py-2 px-4 border">{product.name}</td>
                     <td className="py-2 px-4 border">{product.sku}</td>
                     <td className="py-2 px-4 border">{product.totalStock}</td>
-                    <td className="py-2 px-4 border">{product.lowStockThreshold || 5}</td>
+                    <td className="py-2 px-4 border">{product.threshold}</td>
                     <td className="py-2 px-4 border">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(product.stockStatus)}`}>
                         {product.stockStatus}
                       </span>
                     </td>
-                    <td className="py-2 px-4 border">{product.daysUntilOutOfStock}</td>
                     <td className="py-2 px-4 border">
                       <button className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
                         Reorder Now
@@ -165,7 +185,7 @@ const LowStockReport = ({ alerts, products }) => {
             <h5 className="font-medium text-yellow-800">Restock Recommendations</h5>
             <p className="text-sm text-yellow-700 mt-1">
               Consider placing purchase orders for all products with "Critical" status as soon as possible.
-              Products with 3 or fewer days until out of stock should be prioritized.
+              Products with very low stock should be prioritized.
             </p>
           </div>
         </>
