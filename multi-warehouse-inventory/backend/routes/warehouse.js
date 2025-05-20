@@ -74,8 +74,18 @@ router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const { data, error } = await supabase.from('warehouses').delete().eq('id', id);
+    const { data, error } = await supabase
+      .from('warehouses')
+      .delete()
+      .eq('id', id)
+      .select('id');
+
     if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Warehouse not found' });
+    }
+
     res.json({ message: 'Warehouse deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Error deleting warehouse' });

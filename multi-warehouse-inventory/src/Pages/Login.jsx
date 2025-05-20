@@ -19,21 +19,17 @@ export default function Login() {
       });
 
       const { token, user } = res.data;
-      console.log('Logged in user:', user);  // Debugging: Check if user is correct
-
       if (token) {
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user)); // Store user info in localStorage
-
+        localStorage.setItem('user', JSON.stringify(user));
         alert(`Welcome, ${user.role.toUpperCase()}!`);
-        
         if (user.role === 'admin') {
-          navigate('/');  // Redirect to the dashboard for admin
+          navigate('/');
         } else if (user.role === 'staff') {
-          navigate('/products');   // Redirect to products page for staff
+          navigate('/products');
         } else {
-          navigate('/manager-dashboard');  // Redirect to manager dashboard
-        }     
+          navigate('/manager-dashboard');
+        }
       } else {
         alert('Invalid response from server.');
       }
@@ -45,25 +41,31 @@ export default function Login() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '400px', margin: 'auto' }}>
-      <h2>Login</h2>
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ width: '100%', padding: '8px', marginBottom: '10px' }}
-      />
-      <button onClick={handleLogin} disabled={loading} style={{ width: '100%', padding: '10px' }}>
-        {loading ? 'Logging in...' : 'Login'}
-      </button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center text-blue-700">Login</h2>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-4 py-2 mb-4 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full px-4 py-2 mb-6 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full py-2 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition"
+        >
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
+      </div>
     </div>
   );
 }

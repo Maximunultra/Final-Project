@@ -21,8 +21,11 @@ const PurchaseOrders = () => {
     deliveryDate: '',
     status: 'pending',
     totalAmount: '',
-    items: [{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }]
+    items: [{ productName: '', quantity: 1, cost_price: 0, selling_price: 0, totalPrice: 0 }]
   });
+
+  // State for products data
+  const [products, setProducts] = useState([]);
 
   // Mock data fetch - replace with your actual API call
   useEffect(() => {
@@ -40,8 +43,8 @@ const PurchaseOrders = () => {
               status: 'delivered',
               totalAmount: 12500,
               items: [
-                { description: 'Laptops', quantity: 5, unitPrice: 2000, totalPrice: 10000 },
-                { description: 'Monitors', quantity: 10, unitPrice: 250, totalPrice: 2500 }
+                { productName: 'Laptops', quantity: 5, cost_price: 1800, selling_price: 2000, totalPrice: 10000 },
+                { productName: 'Monitors', quantity: 10, cost_price: 200, selling_price: 250, totalPrice: 2500 }
               ]
             },
             {
@@ -53,8 +56,8 @@ const PurchaseOrders = () => {
               status: 'pending',
               totalAmount: 3750,
               items: [
-                { description: 'Chairs', quantity: 15, unitPrice: 150, totalPrice: 2250 },
-                { description: 'Desks', quantity: 5, unitPrice: 300, totalPrice: 1500 }
+                { productName: 'Chairs', quantity: 15, cost_price: 120, selling_price: 150, totalPrice: 2250 },
+                { productName: 'Desks', quantity: 5, cost_price: 250, selling_price: 300, totalPrice: 1500 }
               ]
             },
             {
@@ -66,8 +69,8 @@ const PurchaseOrders = () => {
               status: 'in-transit',
               totalAmount: 850,
               items: [
-                { description: 'Printer Paper', quantity: 50, unitPrice: 12, totalPrice: 600 },
-                { description: 'Notebooks', quantity: 50, unitPrice: 5, totalPrice: 250 }
+                { productName: 'Printer Paper', quantity: 50, cost_price: 10, selling_price: 12, totalPrice: 600 },
+                { productName: 'Notebooks', quantity: 50, cost_price: 4, selling_price: 5, totalPrice: 250 }
               ]
             }
           ];
@@ -83,6 +86,19 @@ const PurchaseOrders = () => {
     };
     
     fetchPurchaseOrders();
+  }, []);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/products");
+        const data = await res.json();
+        setProducts(data);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
+    };
+    fetchProducts();
   }, []);
 
   // Filter purchase orders based on search term and status filter
@@ -119,10 +135,10 @@ const PurchaseOrders = () => {
       [field]: value
     };
     
-    // Update total price if quantity or unit price changes
-    if (field === 'quantity' || field === 'unitPrice') {
-      updatedItems[index].totalPrice = 
-        Number(updatedItems[index].quantity) * Number(updatedItems[index].unitPrice);
+    // Update total price if quantity or cost price changes
+    if (field === 'quantity' || field === 'cost_price') {
+      updatedItems[index].totalPrice =
+        Number(updatedItems[index].quantity) * Number(updatedItems[index].cost_price);
     }
     
     setFormData({
@@ -137,7 +153,7 @@ const PurchaseOrders = () => {
       ...formData,
       items: [
         ...formData.items,
-        { description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }
+        { productName: '', quantity: 1, cost_price: 0, selling_price: 0, totalPrice: 0 }
       ]
     });
   };
@@ -167,7 +183,7 @@ const PurchaseOrders = () => {
       orderDate: new Date().toISOString().split('T')[0],
       deliveryDate: '',
       status: 'pending',
-      items: [{ description: '', quantity: 1, unitPrice: 0, totalPrice: 0 }],
+      items: [{ productName: '', quantity: 1, cost_price: 0, selling_price: 0, totalPrice: 0 }],
       totalAmount: 0
     });
     setShowCreateModal(true);
@@ -270,11 +286,11 @@ const PurchaseOrders = () => {
     csv += `${order.orderNumber},${order.vendorName},${order.orderDate},${order.deliveryDate},${order.status},${order.totalAmount}\n\n`;
     
     // Add items header
-    csv += 'Item,Quantity,Unit Price,Total Price\n';
+    csv += 'Product,Quantity,Cost Price,Selling Price,Total Price\n';
     
     // Add items
     order.items.forEach(item => {
-      csv += `${item.description},${item.quantity},${item.unitPrice},${item.totalPrice}\n`;
+      csv += `${item.productName},${item.quantity},${item.cost_price},${item.selling_price},${item.totalPrice}\n`;
     });
     
     // Create download link
@@ -288,6 +304,13 @@ const PurchaseOrders = () => {
     a.click();
     document.body.removeChild(a);
   };
+
+  // Mock suppliers data
+  const [suppliers, setSuppliers] = useState([
+    { id: '1', name: 'Tech Supplies Inc.' },
+    { id: '2', name: 'Office Solutions' },
+    { id: '3', name: 'Paper Co.' }
+  ]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -441,14 +464,20 @@ const PurchaseOrders = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Vendor Name
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="vendorName"
                       value={formData.vendorName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                       required
-                    />
+                    >
+                      <option value="">Select a supplier</option>
+                      {suppliers.map((supplier) => (
+                        <option key={supplier.id} value={supplier.name}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   
                   <div>
@@ -503,9 +532,10 @@ const PurchaseOrders = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead>
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item Description</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Cost Price</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Selling Price</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                         <th className="px-4 py-2"></th>
                       </tr>
@@ -514,13 +544,19 @@ const PurchaseOrders = () => {
                       {formData.items.map((item, index) => (
                         <tr key={index}>
                           <td className="px-4 py-2">
-                            <input
-                              type="text"
-                              value={item.description}
-                              onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                            <select
+                              value={item.productName || ""}
+                              onChange={(e) => handleItemChange(index, 'productName', e.target.value)}
                               className="w-full px-3 py-1 border border-gray-300 rounded-md"
                               required
-                            />
+                            >
+                              <option value="">Select product</option>
+                              {products.map((product) => (
+                                <option key={product.id} value={product.name}>
+                                  {product.name}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-4 py-2">
                             <input
@@ -537,8 +573,8 @@ const PurchaseOrders = () => {
                               type="number"
                               min="0"
                               step="0.01"
-                              value={item.unitPrice}
-                              onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                              value={item.cost_price}
+                              onChange={(e) => handleItemChange(index, 'cost_price', e.target.value)}
                               className="w-full px-3 py-1 border border-gray-300 rounded-md"
                               required
                             />
@@ -546,7 +582,18 @@ const PurchaseOrders = () => {
                           <td className="px-4 py-2">
                             <input
                               type="number"
-                              value={Number(item.quantity) * Number(item.unitPrice)}
+                              min="0"
+                              step="0.01"
+                              value={item.selling_price}
+                              onChange={(e) => handleItemChange(index, 'selling_price', e.target.value)}
+                              className="w-full px-3 py-1 border border-gray-300 rounded-md"
+                              required
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <input
+                              type="number"
+                              value={Number(item.quantity) * Number(item.cost_price)}
                               className="w-full px-3 py-1 border border-gray-300 rounded-md bg-gray-50"
                               readOnly
                             />
@@ -570,7 +617,7 @@ const PurchaseOrders = () => {
                     </tbody>
                     <tfoot>
                       <tr>
-                        <td colSpan="5" className="px-4 py-2">
+                        <td colSpan="6" className="px-4 py-2">
                           <button
                             type="button"
                             onClick={addItemRow}
@@ -582,7 +629,7 @@ const PurchaseOrders = () => {
                         </td>
                       </tr>
                       <tr>
-                        <td colSpan="3" className="px-4 py-2 text-right font-medium">
+                        <td colSpan="4" className="px-4 py-2 text-right font-medium">
                           Total Amount:
                         </td>
                         <td className="px-4 py-2 font-bold">
@@ -667,23 +714,25 @@ const PurchaseOrders = () => {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Description</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost Price</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Selling Price</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {currentOrder.items.map((item, index) => (
                       <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{item.description}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{item.productName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.quantity}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatCurrency(item.unitPrice)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatCurrency(item.cost_price)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatCurrency(item.selling_price)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{formatCurrency(item.totalPrice)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan="3" className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 text-right">Total Amount:</td>
+                      <td colSpan="4" className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 text-right">Total Amount:</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">
                         {formatCurrency(currentOrder.totalAmount)}
                       </td>
