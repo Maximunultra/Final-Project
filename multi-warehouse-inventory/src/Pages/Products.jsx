@@ -324,7 +324,7 @@ const handleDelete = (productId) => {
                   <option value="">Select Supplier</option>
                   {suppliers.map((supplier) => (
                     <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
+                      {supplier.company_name || supplier.name}
                     </option>
                   ))}
                 </select>
@@ -540,6 +540,8 @@ const handleDelete = (productId) => {
             products.map((product) => {
               // Find the supplier name for this product
               const supplierName = suppliers.find(
+                (supplier) => supplier.id === product.supplier_id
+              )?.company_name || suppliers.find(
                 (supplier) => supplier.id === product.supplier_id
               )?.name || 'Unknown';
 
