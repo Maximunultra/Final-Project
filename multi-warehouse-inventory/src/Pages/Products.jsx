@@ -518,32 +518,29 @@ const handleDelete = (productId) => {
       )}
 
       {/* Product Table */}
-      <table className="min-w-full table-auto mt-4">
-        <thead className="bg-gray-200">
+      <table className="min-w-full mt-4 rounded-lg overflow-hidden shadow-lg bg-white">
+        <thead className="bg-gradient-to-r from-blue-100 to-blue-200">
           <tr>
-            <th className="px-4 py-2">Product Name</th>
-            <th className="px-4 py-2">SKU</th>
-            <th className="px-4 py-2">Category</th>
-            <th className="px-4 py-2">Supplier</th>
-            <th className="px-4 py-2">Cost Price</th>
-            <th className="px-4 py-2">Selling Price</th>
-            <th className="px-4 py-2">Stock Levels</th>
-            <th className="px-4 py-2">Actions</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Product Name</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Category</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Supplier</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Cost Price</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Selling Price</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Stock Levels</th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
           </tr>
         </thead>
         <tbody>
           {products.length === 0 ? (
             <tr>
-              <td colSpan="8" className="text-center py-4">No products available.</td>
+              <td colSpan="8" className="text-center py-8 text-gray-500">No products available.</td>
             </tr>
           ) : (
-            products.map((product) => {
+            products.map((product, idx) => {
               // Find the supplier name for this product
-              const supplierName = suppliers.find(
-                (supplier) => supplier.id === product.supplier_id
-              )?.company_name || suppliers.find(
-                (supplier) => supplier.id === product.supplier_id
-              )?.name || 'Unknown';
+              const supplierObj = suppliers.find(supplier => supplier.id === product.supplier_id);
+              const supplierName = supplierObj ? (supplierObj.company_name || supplierObj.name) : 'Unknown';
 
               // Compile stock levels across all warehouses
               const productStockLevels = warehouses.map(warehouse => ({
@@ -552,37 +549,40 @@ const handleDelete = (productId) => {
               }));
 
               return (
-                <tr key={product.id}>
-                  <td className="px-4 py-2">{product.name}</td>
-                  <td className="px-4 py-2">{product.sku}</td>
-                  <td className="px-4 py-2">{product.category}</td>
-                  <td className="px-4 py-2">{supplierName}</td>
-                  <td className="px-4 py-2">{product.cost_price}</td>
-                  <td className="px-4 py-2">{product.selling_price}</td>
-                  <td className="px-4 py-2">
-                    <div>
+                <tr
+                  key={product.id}
+                  className={`transition-colors duration-150 ${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-blue-50`}
+                >
+                  <td className="px-4 py-3 max-w-xs truncate" title={product.name}>{product.name}</td>
+                  <td className="px-4 py-3">{product.sku}</td>
+                  <td className="px-4 py-3">{product.category}</td>
+                  <td className="px-4 py-3 max-w-xs truncate" title={supplierName}>{supplierName}</td>
+                  <td className="px-4 py-3 text-green-700 font-medium">₱{Number(product.cost_price).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-blue-700 font-medium">₱{Number(product.selling_price).toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <div className="space-y-1">
                       {productStockLevels.map((stock, index) => (
-                        <div key={index}>
-                          {stock.warehouseName}: {stock.quantity}
+                        <div key={index} className="text-xs text-gray-700">
+                          <span className="font-semibold">{stock.warehouseName}:</span> {stock.quantity}
                         </div>
                       ))}
                     </div>
-                    <button 
-                      className="bg-yellow-500 text-white px-4 py-1 mt-2 rounded hover:bg-yellow-600" 
+                    <button
+                      className="mt-2 bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded shadow transition"
                       onClick={() => openStockModal(product)}
                     >
                       Manage Stock
                     </button>
                   </td>
-                  <td className="px-4 py-2">
-                    <button 
-                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600" 
+                  <td className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:gap-0">
+                    <button
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded shadow mr-2 transition"
                       onClick={() => handleEdit(product)}
                     >
                       Edit
                     </button>
-                    <button 
-                      className="bg-red-500 text-white px-4 py-2 ml-2 rounded hover:bg-red-600" 
+                    <button
+                      className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow transition"
                       onClick={() => handleDelete(product.id)}
                     >
                       Delete

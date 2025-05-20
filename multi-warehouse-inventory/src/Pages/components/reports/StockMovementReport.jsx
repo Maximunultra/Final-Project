@@ -23,11 +23,13 @@ const StockMovementReport = ({ stockMovements: rawMovements, products, warehouse
       id: movement.id || `temp-${Math.random().toString(36).substr(2, 9)}`,
       date: movement.transfer_date || movement.date,
       productId: movement.product_id || movement.productId,
-      // Determine movement type based on available fields
+      productName: movement.product_name, // <-- add this
       type: determineMovementType(movement),
       quantity: movement.quantity,
       warehouseId: movement.destination_warehouse_id || movement.warehouse_id || movement.warehouseId,
+      warehouseName: movement.destination_warehouse_name, // <-- add this
       sourceWarehouseId: movement.source_warehouse_id || movement.sourceWarehouseId,
+      sourceWarehouseName: movement.source_warehouse_name, // <-- add this
       referenceNumber: movement.reference_number || movement.referenceNumber,
       notes: movement.notes
     }));
@@ -145,18 +147,28 @@ const StockMovementReport = ({ stockMovements: rawMovements, products, warehouse
     }
   };
 
-  // Get product name by ID
-  const getProductName = (productId) => {
-    if (!productId || !products || !Array.isArray(products)) return 'Unknown Product';
-    const product = products.find(p => p.id === productId);
+  // Get product name by movement
+  const getProductName = (movement) => {
+    if (movement.productName) return movement.productName;
+    if (!movement.productId || !products || !Array.isArray(products)) return 'Unknown Product';
+    const product = products.find(p => String(p.id) === String(movement.productId));
     return product ? product.name : 'Unknown Product';
   };
 
-  // Get warehouse name by ID
-  const getWarehouseName = (warehouseId) => {
-    if (!warehouseId || !warehouses || !Array.isArray(warehouses)) return 'Unknown Warehouse';
-    const warehouse = warehouses.find(w => w.id === warehouseId);
+  // Get warehouse name by movement
+  const getWarehouseName = (movement) => {
+    if (movement.warehouseName) return movement.warehouseName;
+    if (!movement.warehouseId || !warehouses || !Array.isArray(warehouses)) return 'Unknown Warehouse';
+    const warehouse = warehouses.find(w => String(w.id) === String(movement.warehouseId));
     return warehouse ? warehouse.name : 'Unknown Warehouse';
+  };
+
+  // Get source warehouse name by movement
+  const getSourceWarehouseName = (movement) => {
+    if (movement.sourceWarehouseName) return movement.sourceWarehouseName;
+    if (!movement.sourceWarehouseId || !warehouses || !Array.isArray(warehouses)) return '';
+    const warehouse = warehouses.find(w => String(w.id) === String(movement.sourceWarehouseId));
+    return warehouse ? warehouse.name : '';
   };
 
   // Get badge color based on movement type
@@ -375,7 +387,7 @@ const StockMovementReport = ({ stockMovements: rawMovements, products, warehouse
                     {formatDate(movement.date)}
                   </td>
                   <td className="py-2 px-4 border">
-                    {getProductName(movement.productId)}
+                    {getProductName(movement)}
                   </td>
                   <td className="py-2 px-4 border">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getMovementTypeBadge(movement.type)}`}>
@@ -388,10 +400,10 @@ const StockMovementReport = ({ stockMovements: rawMovements, products, warehouse
                     {getFormattedQuantity(movement)}
                   </td>
                   <td className="py-2 px-4 border">
-                    {getWarehouseName(movement.warehouseId)}
+                    {getWarehouseName(movement)}
                     {movement.sourceWarehouseId && movement.type && movement.type.toLowerCase() === 'transfer' && (
                       <div className="text-xs text-gray-500">
-                        From: {getWarehouseName(movement.sourceWarehouseId)}
+                        From: {getSourceWarehouseName(movement)}
                       </div>
                     )}
                   </td>

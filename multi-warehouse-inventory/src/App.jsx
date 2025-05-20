@@ -9,6 +9,7 @@ import Login from "./Pages/Login";
 import Layout from "./Components/Layout"; // Import Layout
 import PurchaseOrders from "./Pages/PurchaseOrders";
 import SupplierManagement from "./Pages/Supplier";
+import UserManagement from "./Pages/UserManagement";
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -33,6 +34,7 @@ const App = () => {
         <Route path="/low-stock" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><LowStockAlerts /></Layout></PrivateRoute>} />
          <Route path="/order" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><PurchaseOrders /></Layout></PrivateRoute>} />
         <Route path="/supplier" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><SupplierManagement /></Layout></PrivateRoute>} />
+        <Route path="/users" element={<PrivateRoute isAuthenticated={isAuthenticated}><Layout><UserManagement /></Layout></PrivateRoute>} />
       </Routes>
     </Router>
   );

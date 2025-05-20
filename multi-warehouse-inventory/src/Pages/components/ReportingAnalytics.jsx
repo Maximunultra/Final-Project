@@ -64,14 +64,34 @@ const ReportingAnalytics = ({ products, alerts }) => {
   // Prepare report data for export based on active report
   const getReportDataForExport = () => {
     switch (activeReport) {
-      case 'stock-levels':
-        return products.map(product => ({
-          'Product ID': product.id,
-          'Product Name': product.name,
-          'Category': product.category,
-          'Total Stock': product.totalStock,
-          'Unit': product.unit || 'pcs'
-        }));
+      case 'stock-levels': {
+        // Get all warehouse names in the order you want them to appear
+        const warehouseNames = warehouses.map(w => w.name);
+
+        return products.map(product => {
+          // Build warehouse stock columns
+          const warehouseStock = {};
+          warehouseNames.forEach(name => {
+            // Find the warehouse object for this name
+            const warehouse = warehouses.find(w => w.name === name);
+            // Find the stock for this warehouse for this product
+            let stock = 0;
+            if (product.stocks && Array.isArray(product.stocks)) {
+              const found = product.stocks.find(s => String(s.warehouse_id) === String(warehouse.id));
+              stock = found ? found.quantity : 0;
+            }
+            warehouseStock[name] = stock;
+          });
+
+          return {
+            'Product Name': product.name,
+            'SKU': product.sku,
+            'Total Stock': product.totalStock,
+            ...warehouseStock, // Spread warehouse columns in order
+            'Category': product.category
+          };
+        });
+      }
       
       case 'low-stock':
         const lowStockProducts = products.filter(product => 
@@ -88,11 +108,12 @@ const ReportingAnalytics = ({ products, alerts }) => {
       case 'stock-movement':
         return stockMovements.map(movement => ({
           'Movement ID': movement.id,
-          'Product': products.find(p => p.id === movement.productId)?.name || 'Unknown',
-          'Type': movement.type,
+          'Product': movement.product_name || 'Unknown',
+          'Type': movement.status || movement.type || 'Unknown',
           'Quantity': movement.quantity,
-          'Warehouse': warehouses.find(w => w.id === movement.warehouseId)?.name || 'Unknown',
-          'Date': new Date(movement.date).toLocaleDateString(),
+          'Source Warehouse': movement.source_warehouse_name || 'Unknown',
+          'Destination Warehouse': movement.destination_warehouse_name || 'Unknown',
+          'Date': movement.transfer_date ? new Date(movement.transfer_date).toLocaleString() : '',
           'Reference': movement.reference || 'N/A'
         }));
       
@@ -101,11 +122,12 @@ const ReportingAnalytics = ({ products, alerts }) => {
         return valuedInventory.map(product => ({
           'Product ID': product.id,
           'Product Name': product.name,
-          'Unit Price': product.price || 0,
+          'Category': product.category || '', // Add if your table shows category
+          'Unit Price': product.price !== undefined ? Number(product.price).toFixed(2) : '0.00',
           'Quantity': product.totalStock,
-          'Total Value': product.totalValue
+          'Total Value': product.totalValue !== undefined ? Number(product.totalValue).toFixed(2) : '0.00',
+          // 'Unit': product.unit || 'pcs' // Add if your table shows unit
         }));
-      
       default:
         return [];
     }

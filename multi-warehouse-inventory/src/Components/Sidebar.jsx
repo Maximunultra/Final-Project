@@ -111,7 +111,16 @@ const Sidebar = () => {
             <Truck className="w-5 h-5 mr-3" />
             Supplier
           </Link>
-          
+
+           <Link 
+            to="/users" 
+            className={`flex items-center py-3 px-4 rounded-lg hover:bg-gray-800 transition duration-200 ${
+              currentPath === "/supplier" ? "bg-gray-800 text-white" : ""
+            }`}
+          >
+            <Truck className="w-5 h-5 mr-3" />
+            Users
+          </Link>
           {/* Logout Button */}
           <button
             className="flex w-full items-center py-3 px-4 rounded-lg hover:bg-gray-800 transition duration-200 text-left"

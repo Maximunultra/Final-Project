@@ -195,27 +195,20 @@ const StockMovement = () => {
           </thead>
           <tbody>
             {stockMovements.length > 0 ? (
-              stockMovements.map((movement) => {
-                // Find product and warehouse names by ID
-                const product = products.find(p => p.id === movement.productId);
-                const sourceWarehouse = warehouses.find(w => w.id === movement.sourceWarehouseId);
-                const destinationWarehouse = warehouses.find(w => w.id === movement.warehouseId);
-
-                return (
-                  <tr key={movement.id} className="border-b">
-                    <td className="px-4 py-2">{product ? product.name : 'Unknown'}</td>
-                    <td className="px-4 py-2">{movement.quantity}</td>
-                    <td className="px-4 py-2">{sourceWarehouse ? sourceWarehouse.name : 'Unknown'}</td>
-                    <td className="px-4 py-2">{destinationWarehouse ? destinationWarehouse.name : 'Unknown'}</td>
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-1 rounded text-xs ${movement.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {movement.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">{movement.date ? new Date(movement.date).toLocaleString() : ''}</td>
-                  </tr>
-                );
-              })
+              stockMovements.map((movement) => (
+                <tr key={movement.id} className="border-b">
+                  <td className="px-4 py-2">{movement.product_name || 'Unknown'}</td>
+                  <td className="px-4 py-2">{movement.quantity}</td>
+                  <td className="px-4 py-2">{movement.source_warehouse_name || 'Unknown'}</td>
+                  <td className="px-4 py-2">{movement.destination_warehouse_name || 'Unknown'}</td>
+                  <td className="px-4 py-2">
+                    <span className={`px-2 py-1 rounded text-xs ${movement.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {movement.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">{movement.transfer_date ? new Date(movement.transfer_date).toLocaleString() : ''}</td>
+                </tr>
+              ))
             ) : (
               <tr>
                 <td colSpan="6" className="px-4 py-2 text-center">No stock movements found</td>
